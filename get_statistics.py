@@ -17,7 +17,7 @@ export_table = 1  # 1 = export results to excel file, 0 = do nothing
 
 # In[] Variables (in the case of 1 feature and 1 scenario)
 
-file_name = 'dataset.xlsx'  # name of the excel file
+file_name = 'dataset_stats.xlsx'  # name of the excel file
 scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT']  # , 'all' # as names of sheets in excel file
 
 scenario = 'CO'  # in the case of only_one_scenario = 1
