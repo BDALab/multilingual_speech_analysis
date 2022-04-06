@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from scipy.stats import spearmanr
 from scipy.stats import pearsonr
+from statsmodels.stats.multitest import fdrcorrection
 
 import seaborn as sns
 
@@ -17,7 +18,7 @@ filename = 'dataset_corr.xlsx'
 export_table = 1
 
 scenario_list = ['duration_of_PD', 'LED', 'UPDRSIII', 'UPDRSIII-speech', 'H&Y']
-score_list = ['coeff', 'p-value']
+score_list = ['coeff', 'p-value', 'FDR_correction']
 
 # prepare output excel
 if export_table == 1:
@@ -62,10 +63,16 @@ for scenario in scenario_list:
         df_spear.loc[feature_name, score_list[0]] = round(coef_spear, 3)
         df_spear.loc[feature_name, score_list[1]] = round(p_spear, 3)
 
+        reject_spear, p_cor_spear = fdrcorrection(np.array(list(df_spear['p-value'])), alpha=0.05, method='indep')
+        df_spear.loc[:, 'FDR_correction'] = p_cor_spear
+
         # Pearson's rank correlation
         coef_pears, p_pears = pearsonr(feat_vector.flatten(), data_vector.flatten())
         df_pears.loc[feature_name, score_list[0]] = round(coef_pears, 3)
         df_pears.loc[feature_name, score_list[1]] = round(p_pears, 3)
+
+        reject_pears, p_cor_pears = fdrcorrection(np.array(list(df_spear['p-value'])), alpha=0.05, method='indep')
+        df_pears.loc[:, 'FDR_correction'] = p_cor_pears
 
     if export_table == 1:
         df_spear.to_excel(writer_spear, sheet_name=scenario)
