@@ -18,19 +18,18 @@ export_table = 1  # 1 = export results to excel file, 0 = do nothing
 # In[] Variables (in the case of 1 feature and 1 scenario)
 
 file_name = 'dataset_stats.xlsx'  # name of the excel file
-scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT']  # , 'all' # as names of sheets in excel file
+scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT', 'all']  # as names of sheets in excel file
 
-scenario = 'CO'  # in the case of only_one_scenario = 1
+scenario = 'IT'  # in the case of only_one_scenario = 1
 feature_name = 'TSK2-EEVOL'  # in the case of 1 feature
 
 # In[] Loop for scenarios
 
 if only_one_scenario == 1:
     scenario_list = list([scenario])
-else:
-    # prepare excel files to be saved
-    if export_table == 1:
-        writer_RAT = pd.ExcelWriter('results/stats_results.xlsx')
+
+if export_table == 1:
+    writer_RAT = pd.ExcelWriter('results/stats_results.xlsx')
 
 for scenario in scenario_list:
 
@@ -90,7 +89,7 @@ for scenario in scenario_list:
         out_median_PD = np.median(feature_noNaN_PD)
         out_std_PD = np.std(feature_noNaN_PD)
 
-        MW_U, MW_p_value = mannwhitneyu(feature_noNaN_HC, feature_noNaN_PD, method="exact")  # Mann-Whitney U test
+        MW_U, MW_p_value = mannwhitneyu(feature_noNaN_HC, feature_noNaN_PD, method="auto")  # Mann-Whitney U test
 
         # In[] (norm data to HC) z-scores and calculate geometric features
 
@@ -182,11 +181,6 @@ for scenario in scenario_list:
         df_out.loc[feature_name, 'RAT_L'] = ratio_PD_L
         df_out.loc[feature_name, 'RAT_H'] = ratio_PD_R
 
-        # In[] sort the dataset
-
-        # df_out = df_out.sort_values(by=['RAT_L', 'RAT_H'], ascending=False,
-        #                             key=pd.Series.abs)
-
         # In[] show the loop progression
         c = c + 1
         print('Scenario: ' + scenario + ' - Features done: ' + str(c) + '/' + str(len(feature_list)))
@@ -247,15 +241,14 @@ for scenario in scenario_list:
 
         plt.plot(np.array([upper_limit, upper_limit]), np.array([0, limits[1] * 0.95]), 'k')
 
-        # plt.subplot(212)
-        # list_HCPD = [z_score_HC, z_score_PD]
-        #
-        # sns.boxplot(data=list_HCPD, orient='h')
-
         plt.xlabel('z-score: %s (%s)' % (feature_name, scenario))
         plt.savefig('results/out_of_norm.pdf')
-
+        plt.close()
 
 # In[] save and close excel files
 if export_table == 1:
     writer_RAT.save()
+
+# In[]
+
+print('finished')

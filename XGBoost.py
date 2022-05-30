@@ -7,38 +7,35 @@ import matplotlib.pyplot as plt
 import xgboost as xgb
 
 import sklearn.metrics as metrics
-from sklearn.model_selection import train_test_split, StratifiedKFold, RepeatedStratifiedKFold, RandomizedSearchCV
-from sklearn.model_selection import cross_validate, cross_val_score, cross_val_predict
-from sklearn.metrics import make_scorer
-from sklearn.metrics import confusion_matrix, accuracy_score, matthews_corrcoef, precision_score, recall_score, \
-    f1_score, roc_curve, auc
+from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold, RandomizedSearchCV, cross_validate
+from sklearn.metrics import make_scorer, confusion_matrix, accuracy_score, matthews_corrcoef, recall_score, \
+                            f1_score, roc_curve, auc
 
 import shap
 
-# sns.set_theme()
-
 # In[] variables
 
-file_name = 'dataset_XBG.xlsx'
-scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT', 'all'])  # name of the excel sheet
+file_name = 'dataset_XGB.xlsx'  # name of the excel file with features
+folder_save = 'results'  # name of the folder where results (tables and graphs) will be stored
 
+scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT', 'all'])  # name of specific sheets in excel file (file_name)
 
-only_one_scenario = 0  # 1 =  process just one scenario
-scenario = 'IL'  # in the case of only_one_scenario = 1
+only_one_scenario = 0  # 1 =  process just one scenario (otherwise loop through all scenarios)
+scenario = 'IL'  # choose language in the case of only_one_scenario = 1
 
-export_table = 1
+export_table = 1  # export four tables in total
 
-seed = 42
+seed = 42  # random search
 
 # In[] Set the script
 
 if export_table == 1:
-    writer_imp = pd.ExcelWriter('results/feature_importances.xlsx')
-    writer_per = pd.ExcelWriter('results/model_performance.xlsx')
+    writer_imp = pd.ExcelWriter(folder_save + '/feature_importances.xlsx')
+    writer_per = pd.ExcelWriter(folder_save + '/model_performance.xlsx')
 
     if not only_one_scenario == 1:
-        writer_cross = pd.ExcelWriter('results/cross_language.xlsx')
-        writer_cross_mcc = pd.ExcelWriter('results/cross_language_mcc.xlsx')
+        writer_cross = pd.ExcelWriter(folder_save + '/cross_language.xlsx')
+        writer_cross_mcc = pd.ExcelWriter(folder_save + '/cross_language_mcc.xlsx')
 
 if only_one_scenario == 1:
     scenario_list = list([scenario])
@@ -53,15 +50,14 @@ df_cross_language_MCC = pd.DataFrame(0.00, index=scenario_list, columns=scenario
 model_params = {
     "booster": "gbtree",
     "n_jobs": -1,
-    "use_label_encoder": False,  # wtf
-
-    "objective": "binary:logistic",  # https://xgboost.readthedocs.io/en/latest/parameter.html
+    "use_label_encoder": False,
+    "objective": "binary:logistic",
     "eval_metric": "logloss",
     "seed": seed,
 }
 
 param_grid = {
-    "n_estimators": [100, 500, 1000],  # original 500
+    "n_estimators": [100, 500, 1000],
     "learning_rate": [0.001, 0.01, 0.1, 0.2, 0.3],
     "gamma": [0, 0.10, 0.15, 0.25, 0.5],
     "max_depth": [4, 6, 8, 10, 12, 15],
@@ -69,17 +65,15 @@ param_grid = {
     "colsample_bylevel": [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
     "colsample_bytree": [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
     "min_child_weight": [0.5, 1.0, 3.0, 5.0, 7.0, 10.0],
-    'max_delta_step': [0, 1, 5, 10],  # for imbalanced data
+    'max_delta_step': [0, 1, 5, 10],
     "scale_pos_weight": [1, 5, 10, 20, 50, 100]
-    # https://machinelearningmastery.com/xgboost-for-imbalanced-classification/
 }
 
 search_settings = {
     "param_distributions": param_grid,
     "scoring": 'balanced_accuracy',
-    # f1_micro https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
     "n_jobs": -1,
-    "n_iter": 500,  # 500 original
+    "n_iter": 500,
     "verbose": 10
 }
 
@@ -116,6 +110,10 @@ for scenario in scenario_list:
 
     X = df_feat.iloc[:, 0:-1].values
     y = df_feat.iloc[:, -1].values
+    # todo Palo
+    # X = df_feat.iloc[:, 0:-2].values
+    # y = df_feat.iloc[:, -2].values
+    # R = df_feat.iloc[:, -1].values
 
     # In[] Search for the best hyper-parameters
 
@@ -128,6 +126,9 @@ for scenario in scenario_list:
     kfolds = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
 
     # Employ the hyper-parameter tuning
+    # r = y if scenario != 'all' else r # todo Palo
+    # random_search = RandomizedSearchCV(model, cv=kfolds.split(X, r), random_state=seed, **search_settings) # todo Palo
+
     random_search = RandomizedSearchCV(model, cv=kfolds.split(X, y), random_state=seed, **search_settings)
     random_search.fit(X, y)
 
@@ -142,7 +143,7 @@ for scenario in scenario_list:
     model = xgb.XGBClassifier(**random_search.best_params_)
 
     # Prepare the cross-validation scheme
-    kfolds = RepeatedStratifiedKFold(n_splits=10, n_repeats=20, random_state=seed)
+    kfolds = RepeatedStratifiedKFold(n_splits=10, n_repeats=20, random_state=seed)  # todo Palo
 
     # Prepare the scoring
     scoring = {
@@ -157,7 +158,7 @@ for scenario in scenario_list:
     # Cross-validate the classifier
     cv_results = cross_validate(model, X, y, scoring=scoring, cv=kfolds)
 
-    # Compute the mean and std of the metrics
+    # Get the mean and std of the metrics
     cls_report = {
         "mcc_avg": round(float(np.mean(cv_results["test_mcc"])), 4),
         "mcc_std": round(float(np.std(cv_results["test_mcc"])), 4),
@@ -181,8 +182,6 @@ for scenario in scenario_list:
     sen = f"{cls_report['sen_avg']:.2f} +- {cls_report['sen_std']:.2f}"
     spe = f"{cls_report['spe_avg']:.2f} +- {cls_report['spe_std']:.2f}"
 
-    # print(f" mcc = {mcc}, F1 = {F1}, AUC = {AUC}, ACC = {acc}, SEN = {sen}, SPE = {spe} \n")
-
     df_performance.loc[scenario, :] = [mcc, F1, AUC, acc, sen, spe]
 
     # In[] Feature importances
@@ -205,14 +204,14 @@ for scenario in scenario_list:
     shap_values = shap.TreeExplainer(model).shap_values(X)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
-    ax = shap.summary_plot(shap_values, X, max_display=10)
+    ax = shap.summary_plot(shap_values, X, max_display=17)
 
-    fig.savefig('results/SHAP_' + scenario + '_summary.pdf')
+    fig.savefig(folder_save + '/SHAP_' + scenario + '_summary.pdf')
     plt.close()
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
-    ax = shap.summary_plot(shap_values, X, max_display=10, plot_type="bar")
-    fig.savefig('results/SHAP_' + scenario + '_mean.pdf')
+    ax = shap.summary_plot(shap_values, X, max_display=17, plot_type="bar")
+    fig.savefig(folder_save + '/SHAP_' + scenario + '_mean.pdf')
     plt.close()
 
     # In[] Cross-language (transfer learning)
@@ -264,3 +263,5 @@ if export_table == 1:
         writer_cross_mcc.save()
 
 # In[]
+
+print('finished')

@@ -16,7 +16,7 @@ feature_file_name = "extracted_features.xlsx"
 clinical_file_name = "labels_data.xlsx"
 
 only_one_feature = 0  # 1 = only one feature to process and show graph; 0 = adjust all features
-feature_name = 'TSK3-HNR'
+feature_name = 'TSK3-DUV'  # in the case of only_one_feature = 1
 
 export_table = 1  # 1 = export adjusted data and coefficients to excel
 
@@ -117,7 +117,6 @@ for feature_name in feature_list:
     # In[] return NaNs and save vector
 
     y_out[NaN_vector] = np.NaN
-
     df_out[feature_name] = (y_out * max_feature).tolist()
 
     # In[] save regression coefficient
@@ -161,7 +160,6 @@ if only_one_feature == 1:
     result = ' '.join(['HC: The feature is', a_r,
                        'with age and females', g_r,
                        'males.'])
-
     plt.figure(1).clf()
     plt.figure(1)
     plt.scatter(age_HC, feature_HC, color='lightsteelblue')
@@ -170,22 +168,18 @@ if only_one_feature == 1:
              np.array([np.min(age_HC), np.max(age_HC)]),
              np.array([y_mean, y_mean]), 'k',
              age_HC, y_reg_new, 'r_')
-    plt.legend(['regression line',
+    plt.legend(['original',
+                'adjusted',
+                'regression line',
                 'mean',
-                'new reg. line',
-                'original',
-                'adjusted', ])
+                'new reg. line'])
 
     plt.title(result)
     plt.xlabel('age')
     plt.ylabel(feature_name)
+    plt.savefig('results/' + feature_name + '_effect.pdf')
+    plt.close()
 
+# In[]
 
-
-
-
-
-
-
-
-
+print('finished')

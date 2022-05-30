@@ -82,3 +82,7 @@ for scenario in scenario_list:
 if export_table == 1:
     writer_spear.save()
     writer_pears.save()
+
+# In[]
+
+print('finished')
