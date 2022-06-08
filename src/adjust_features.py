@@ -1,30 +1,33 @@
-
+import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-
+import matplotlib.pyplot as plt
 from sklearn.impute import SimpleImputer
-
 from sklearn.linear_model import LinearRegression
+
+"""
+Script for adjusting the features using linear regression.
+The aim is to remove the effects of gender and age from the features.
+"""
 
 sns.set_theme()
 
 # In[] Variables
 
-feature_file_name = "extracted_features.xlsx"
-clinical_file_name = "labels_data.xlsx"
+feature_file_name = "data/extracted_features.xlsx"
+clinical_file_name = "data/labels_data.xlsx"
+output_file_name = 'data/adjusted_features.xlsx'
 
-only_one_feature = 0  # 1 = only one feature to process and show graph; 0 = adjust all features
-feature_name = 'TSK3-DUV'  # in the case of only_one_feature = 1
-
-export_table = 1  # 1 = export adjusted data and coefficients to excel
+only_one_feature = False  # True = only one feature to process and show graph; False = adjust all features
+feature_name = 'TSK3-DUV'  # in the case of only_one_feature = True
+export_table = True  # True = export adjusted data and coefficients to excel
 
 # In[] read excel and create dataframes
 df_clin = pd.read_excel(clinical_file_name, index_col=0)
 df_feat = pd.read_excel(feature_file_name, index_col=0)
 
-if only_one_feature == 1:
+if only_one_feature:
     feature_list = list([feature_name])
 else:
     feature_list = list(df_feat.columns)
@@ -71,7 +74,7 @@ for feature_name in feature_list:
     max_feature = max(feature)
     feature = feature / max_feature
 
-    # In[] devide to HC and PD
+    # In[] divide into HC and PD
 
     feature_HC = feature[is_PD == 0]
     feature_PD = feature[is_PD == 1]
@@ -89,7 +92,8 @@ for feature_name in feature_list:
 
     # Lin Reg Model from HC
 
-    indep_var = np.array([age_HC, is_female_HC]).T  # get matrix of input independent variables (age and sex)
+    # get a matrix of input independent variables (age and sex)
+    indep_var = np.array([age_HC, is_female_HC]).T
 
     LR_model = LinearRegression().fit(indep_var, feature_HC)  # train the model
     LR_inter = LR_model.intercept_  # get the interception
@@ -102,7 +106,7 @@ for feature_name in feature_list:
     residue = feature_HC - y_reg  # get the residue (distance between the real value nad regression line)
     y_out_HC = y_mean + residue  # adjust the feature
 
-    # adjust all (HC + PD) from model trained by HC (our output vvalues of features)
+    # adjust all (HC + PD) from model trained by HC (our output values of features)
     y_reg_all = LR_inter + LR_coef[0] * age + LR_coef[1] * is_female
     residue = feature - y_reg_all
     y_out = y_mean + residue
@@ -133,15 +137,16 @@ for feature_name in feature_list:
 
 # In[] export datasets to excel
 
-if only_one_feature == 0 and export_table == 1:
-    with pd.ExcelWriter('adjusted_features.xlsx') as writer:
+if not only_one_feature and export_table:
+    os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
+    with pd.ExcelWriter(output_file_name) as writer:
         df_out.to_excel(writer, sheet_name='adjusted features')
         df_age.to_excel(writer, sheet_name='age coef')
         df_sex.to_excel(writer, sheet_name='sex coef')
 
 # In[] Plot the linear regression
 
-if only_one_feature == 1:
+if only_one_feature:
 
     if LR_coef[0] > 0:
         a_r = 'increasing'
@@ -182,4 +187,4 @@ if only_one_feature == 1:
 
 # In[]
 
-print('finished')
+print('Script finished.')

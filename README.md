@@ -1,1 +1,0 @@
-Multilingual analysis of acoustic features of speech extracted from recordings of healthy controls and people with Parkinson's disease

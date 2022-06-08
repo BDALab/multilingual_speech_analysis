@@ -1,22 +1,24 @@
-
 import pandas as pd
-
 import xgboost as xgb
-
 import sklearn.metrics as metrics
-from sklearn.metrics import roc_curve, accuracy_score, recall_score, confusion_matrix
+from sklearn.metrics import accuracy_score, recall_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
 
 # In[] variables
 
-file_name = 'dataset_XGB.xlsx'  # name of the excel file with features
-folder_save = 'results'  # name of the folder where results (tables and graphs) will be stored
+# name of the excel file with features
+file_name = 'dataset_XGB.xlsx'
 
-scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT'])  # name of specific sheets in excel file (file_name)
+# name of the folder where results (tables and graphs) will be stored
+folder_save = 'results'
 
-export_table = 1  # export four tables in total
+# name of specific sheets in excel file (file_name)
+scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT'])
+
+export_table = True  # export four tables in total
 
 seed = 42  # random search
+
 
 # In[] Define the classification metrics
 def sensitivity_score(y_true, y_pred):
@@ -29,11 +31,14 @@ def specificity_score(y_true, y_pred):
 
 # In[] Set the script
 
-if export_table == 1:
+
+if export_table:
     writer_cross = pd.ExcelWriter(folder_save + '/leave-one-language-out.xlsx')
 
 metric_list = ['MCC', 'ACC', 'SEN', 'SPE']
-df_cross_language = pd.DataFrame(0.00, index=metric_list, columns=scenario_list)  # create empty dataframe
+
+# create empty dataframe
+df_cross_language = pd.DataFrame(0.0, index=metric_list, columns=scenario_list)
 
 # In[] Define the classifier settings
 
@@ -41,7 +46,6 @@ model_params = {
     "booster": "gbtree",
     "n_jobs": -1,
     "use_label_encoder": False,
-
     "objective": "binary:logistic",
     "eval_metric": "logloss",
     "seed": seed,
@@ -72,22 +76,26 @@ search_settings = {
 
 for scenario_test in scenario_list:
 
-    df_feat_test = pd.read_excel(file_name, sheet_name=scenario_test, index_col=0)
+    df_feat_test = pd.read_excel(
+        file_name, sheet_name=scenario_test, index_col=0)
     feature_list = list(df_feat_test.columns)
     df_feat_train = df_feat_test.copy()
 
     # In[] Load datasets and merge
 
     scenario_list_train = scenario_list.copy()
-    scenario_list_train.remove(scenario_test)  # Drop one scenario that will be the testing scenario
+
+    # Drop one scenario that will be the testing scenario
+    scenario_list_train.remove(scenario_test)
 
     for scenario_train in scenario_list_train:
-
         # Load the feature matrix
-        df_feat = pd.read_excel(file_name, sheet_name=scenario_train, index_col=0)
+        df_feat = pd.read_excel(
+            file_name, sheet_name=scenario_train, index_col=0)
         df_feat_train = pd.concat([df_feat_train, df_feat])
 
-    df_feat_train.drop(index=df_feat_train.index[:df_feat_test.shape[0]], axis=0, inplace=True)
+    df_feat_train.drop(index=df_feat_train.index[:df_feat_test.shape[0]],
+                       axis=0, inplace=True)
 
     # In[] Divide into HC and PD
 
@@ -108,7 +116,9 @@ for scenario_test in scenario_list:
     kfolds = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
 
     # Employ the hyper-parameter tuning
-    random_search = RandomizedSearchCV(model, cv=kfolds.split(X_train, y_train), random_state=seed, **search_settings)
+    random_search = RandomizedSearchCV(
+        model, cv=kfolds.split(X_train, y_train), random_state=seed,
+        **search_settings)
     random_search.fit(X_train, y_train)
 
     best_tuning_score = random_search.best_score_
@@ -139,15 +149,15 @@ for scenario_test in scenario_list:
 
 # In[] export tables
 
-if export_table == 1:
+if export_table:
 
-    df_cross_language.to_excel(writer_cross, sheet_name='leave-one-language-out')
+    df_cross_language.to_excel(
+        writer_cross, sheet_name='leave-one-language-out')
 
 # In[] save and close excel files
-if export_table == 1:
-
+if export_table:
     writer_cross.save()
 
 # In[]
 
-print('finished')
+print('Script finished.')

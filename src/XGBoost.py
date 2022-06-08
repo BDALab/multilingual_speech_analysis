@@ -1,43 +1,43 @@
 
 import numpy as np
 import pandas as pd
-
-import matplotlib.pyplot as plt
-
 import xgboost as xgb
-
+import matplotlib.pyplot as plt
 import sklearn.metrics as metrics
-from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold, RandomizedSearchCV, cross_validate
-from sklearn.metrics import make_scorer, confusion_matrix, accuracy_score, matthews_corrcoef, recall_score, \
-                            f1_score, roc_curve, auc
+from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
+from sklearn.model_selection import RandomizedSearchCV, cross_validate
+from sklearn.metrics import make_scorer, confusion_matrix, accuracy_score, auc
+from sklearn.metrics import matthews_corrcoef, recall_score, f1_score, roc_curve
 
 import shap
 
 # In[] variables
 
-file_name = 'dataset_XGB.xlsx'  # name of the excel file with features
-folder_save = 'results'  # name of the folder where results (tables and graphs) will be stored
+# name of the excel file with features
+file_name = 'data/dataset_XGB.xlsx'
 
-scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT', 'all'])  # name of specific sheets in excel file (file_name)
+# name of the folder where results (tables and graphs) will be stored
+folder_save = 'results'
 
-only_one_scenario = 0  # 1 =  process just one scenario (otherwise loop through all scenarios)
-scenario = 'IL'  # choose language in the case of only_one_scenario = 1
+# name of specific sheets in excel file (file_name)
+scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT', 'all'])
 
-export_table = 1  # export four tables in total
-
-seed = 42  # random search
+only_one_scenario = False  # True = process just one scenario (otherwise loop)
+scenario = 'IL'  # choose language in the case of only_one_scenario = True
+export_table = True  # export four tables in total
+seed = 42  # random search and kfold
 
 # In[] Set the script
 
-if export_table == 1:
+if export_table:
     writer_imp = pd.ExcelWriter(folder_save + '/feature_importances.xlsx')
     writer_per = pd.ExcelWriter(folder_save + '/model_performance.xlsx')
 
-    if not only_one_scenario == 1:
+    if not only_one_scenario:
         writer_cross = pd.ExcelWriter(folder_save + '/cross_language.xlsx')
         writer_cross_mcc = pd.ExcelWriter(folder_save + '/cross_language_mcc.xlsx')
 
-if only_one_scenario == 1:
+if only_one_scenario:
     scenario_list = list([scenario])
 
 metric_list = ['mcc', 'F1', 'AUC', 'acc', 'sen', 'spe']  # list of metrics in final table
@@ -108,12 +108,15 @@ for scenario in scenario_list:
     df_feat = df_feat.replace(['PD'], 1)
     df_feat = df_feat.replace(['HC'], 0)
 
-    X = df_feat.iloc[:, 0:-1].values
-    y = df_feat.iloc[:, -1].values
-    # todo Palo
-    # X = df_feat.iloc[:, 0:-2].values
-    # y = df_feat.iloc[:, -2].values
-    # R = df_feat.iloc[:, -1].values
+    if scenario == 'all':
+        X = df_feat.iloc[:, 0:-2].values
+        y = df_feat.iloc[:, -2].values
+        # Aux series for stratification according to language-diagnosis
+        r = df_feat.iloc[:, -1].values
+    else:
+        X = df_feat.iloc[:, 0:-1].values
+        y = df_feat.iloc[:, -1].values
+        r = y  # Only basic stratification
 
     # In[] Search for the best hyper-parameters
 
@@ -122,14 +125,13 @@ for scenario in scenario_list:
     # Create the classifier
     model = xgb.XGBClassifier(**model_params)
 
-    # Get the cross-validation indices
+    # 10-fold cross-validation
     kfolds = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
 
     # Employ the hyper-parameter tuning
-    # r = y if scenario != 'all' else r # todo Palo
-    # random_search = RandomizedSearchCV(model, cv=kfolds.split(X, r), random_state=seed, **search_settings) # todo Palo
+    random_search = RandomizedSearchCV(
+        model, cv=kfolds.split(X, r), random_state=seed, **search_settings)
 
-    random_search = RandomizedSearchCV(model, cv=kfolds.split(X, y), random_state=seed, **search_settings)
     random_search.fit(X, y)
 
     best_tuning_score = random_search.best_score_
@@ -143,7 +145,8 @@ for scenario in scenario_list:
     model = xgb.XGBClassifier(**random_search.best_params_)
 
     # Prepare the cross-validation scheme
-    kfolds = RepeatedStratifiedKFold(n_splits=10, n_repeats=20, random_state=seed)  # todo Palo
+    kfolds = RepeatedStratifiedKFold(
+        n_splits=10, n_repeats=20, random_state=seed)
 
     # Prepare the scoring
     scoring = {
@@ -156,7 +159,8 @@ for scenario in scenario_list:
     }
 
     # Cross-validate the classifier
-    cv_results = cross_validate(model, X, y, scoring=scoring, cv=kfolds)
+    cv_results = cross_validate(
+        model, X, y, scoring=scoring, cv=kfolds.split(X, r))
 
     # Get the mean and std of the metrics
     cls_report = {
@@ -190,12 +194,14 @@ for scenario in scenario_list:
 
     feature_list = list(df_feat.columns)
     feature_list.pop()
-    df_importances = pd.DataFrame(model.feature_importances_, index=feature_list, columns=['importance'])
-    df_importances = df_importances.sort_values(by=['importance'], ascending=False, key=pd.Series.abs)
+    df_importances = pd.DataFrame(
+        model.feature_importances_, index=feature_list, columns=['importance'])
+    df_importances = df_importances.sort_values(
+        by=['importance'], ascending=False, key=pd.Series.abs)
 
     # Export table
 
-    if export_table == 1:
+    if export_table:
         df_importances.to_excel(writer_imp, sheet_name=scenario)
 
     # In[] Shap values
@@ -216,11 +222,12 @@ for scenario in scenario_list:
 
     # In[] Cross-language (transfer learning)
 
-    if not only_one_scenario == 1:
+    if not only_one_scenario:
 
         for scenario_test in scenario_list:
 
-            df_feat_test = pd.read_excel(file_name, sheet_name=scenario_test, index_col=0)
+            df_feat_test = pd.read_excel(
+                file_name, sheet_name=scenario_test, index_col=0)
 
             df_feat_test = df_feat_test.replace(['PD'], 1)
             df_feat_test = df_feat_test.replace(['HC'], 0)
@@ -242,26 +249,26 @@ for scenario in scenario_list:
 
         # Export table
 
-        if export_table == 1:
+        if export_table:
             df_cross_language.to_excel(writer_cross, sheet_name=scenario)
 
 # In[] export tables
 
-if export_table == 1:
+if export_table:
     df_performance.to_excel(writer_per, sheet_name='performance')
 
-    if not only_one_scenario == 1:
+    if not only_one_scenario:
         df_cross_language_MCC.to_excel(writer_cross_mcc, sheet_name='MCC')
 
 # In[] save and close excel files
-if export_table == 1:
+if export_table:
     writer_imp.save()
     writer_per.save()
 
-    if not only_one_scenario == 1:
+    if not only_one_scenario:
         writer_cross.save()
         writer_cross_mcc.save()
 
 # In[]
 
-print('finished')
+print('Script finished.')

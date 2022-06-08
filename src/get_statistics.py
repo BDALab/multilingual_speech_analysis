@@ -1,11 +1,15 @@
 import pandas as pd
 import numpy as np
-
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from scipy.stats import mannwhitneyu
 from statsmodels.stats.multitest import fdrcorrection
+
+"""
+Script for computing:
+ - MannwhitneyU test for all features
+ - ratio of PD patients that lie outside of normal interval of healthy controls
+"""
 
 # In[] Set the script
 
@@ -17,7 +21,7 @@ export_table = 1  # 1 = export results to excel file, 0 = do nothing
 
 # In[] Variables (in the case of 1 feature and 1 scenario)
 
-file_name = 'dataset_stats.xlsx'  # name of the excel file
+file_name = 'data/dataset_stats.xlsx'  # name of the excel file
 scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT', 'all']  # as names of sheets in excel file
 
 scenario = 'IT'  # in the case of only_one_scenario = 1
@@ -251,4 +255,4 @@ if export_table == 1:
 
 # In[]
 
-print('finished')
+print('Script finished.')
