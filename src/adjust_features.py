@@ -18,7 +18,7 @@ sns.set_theme()
 clinical_file_name = 'data/labels.csv'
 feature_file_name = 'data/features.csv'
 output_file_name = 'data/features_adjusted.csv'
-results_file_name = 'results/logistic_regression_coefficients.csv'
+results_file_name = 'results/linear_regression_coefficients.csv'
 
 # To be used when only_one_feature=True and to be formatted with feature_name
 fig_file_name_template = 'results/{}_effect.pdf'
@@ -125,8 +125,8 @@ for feature_name in feature_list:
     df_out[feature_name] = (y_out * max_feature).tolist()
 
     # In[] save regression coefficient
-    df_lrc.loc[feature_name, 'age coef'] = LR_coef[0]
-    df_lrc.loc[feature_name, 'sex coef'] = LR_coef[1]
+    df_lrc.loc[feature_name, 'age_coef'] = LR_coef[0]
+    df_lrc.loc[feature_name, 'sex_coef'] = LR_coef[1]
 
 # In[] export datasets to excel
 
