@@ -10,7 +10,7 @@ Moreover, we analyze the feature importance using SHAP values.
 ## Research article
 
 The findings of this study are published in [update this ArXiv link](https://arxiv.org).
-Please, in case you build upon this work, cite the article above.
+In case you build upon this work, please, cite our work.
 
 ```bibtex
 @article{kovac2022,
@@ -21,20 +21,20 @@ Please, in case you build upon this work, cite the article above.
   number={0},
   pages={0--10},
   year={2022},
-  publisher={Publisher}
+  publisher={Publisher},
+  eprint={arXiv}
 }
 ```
 
 ## Reproducibility
 
-The data sets of the original audio recordings are private, but we provide the
-tables (in folder `data`) with the computed features for reproducibility of
-all the results presented in the article. Along with the data used in this study,
-we provide the source code to compute the features on your own recordings
-([update this git repo](https://github.com)), as well as the code (in folder
-`src`) to repeat our experiments.
+Due to the licensing of the used data sets, we are not allowed to publish the
+recordings, the features, nor the labels. However, we provide all the source
+code (in folder `src`), so you can run the same experiments on your own data.
+Additionally, in the article, we list the software packages used to compute
+the features from the raw audio recordings.  
 
-### Code
+### Install the dependencies
 
 ```
 # Clone the repo
@@ -45,25 +45,53 @@ cd multilingual_speech_analysis
 python3 -m virtualenv .venv
 source .venv/bin/activate
 
-# Install the dependencies
+# Install the deps from the last known working environment with exact versions
 pip install -r requirements.txt
 ```
 
-### Data
+If you want to experiment with different versions of packages here is a
+list of those that need to be installed: `shap`, `numpy`, `scipy`, `pandas`,
+`sklearn`, `seaborn`, `xgboost`, `matplotlib`, `statsmodels`.
 
-* `extracted_features.xlsx`
-  \- Contains results of parametrization based on raw audio files.
-* `labels_data.xlsx`
-  \- Contains a list of all recordings (one per row) along with their labels.
+### Prepare the data
 
-### Steps to repeat the experiments
+Create two csv files, `data/labels.csv` and `data/features.csv` delimited with `;`.
+Each of the files must contain one recording per row. The first column
+in each file must be a unique recording ID. Both files must be sorted the same way.
 
-1. run `adjust_features.py` to get `adjusted_features.xlsx`
-2. files `dataset_*.xlsx` are just manually restructured `adjusted_features.xlsx`
-3. run `correlations.py` to obtain `results/spearman.xlsx`
-4. run `get_statistics.py` to obtain `results/stats_results.xlsx`
-5. run `XGBoost.py` to obtain feature importances and classification results
-6. run `XGBoost_leave-one-language-out.py` to obtain `leave-one-language-out.xlsx`
+Structure of `data/labels.csv`:
+
+| column name     | dtype        | description
+| -------------   | ----------   | -----------
+| ID              | str or int   | Unique identifier of each recording
+| nationality     | str          | Used for stratification
+| diagnosis       | 'HC' or 'PD' | Used for stratification and as a target of classification
+| sex             | 'M' or 'F'   | Used for data adjustment
+| age             | numeric      | Used for data adjustment
+| duration_of_PD  | numeric      | Time since the first symptoms
+| LED             | numeric      | Daily dose of medication (L-dopa)
+| UPDRSIII        | numeric      | Unified Parkinson Disease Rating Scale (part 3)
+| UPDRSIII-speech | numeric      | Same as previous but only for speech
+| H&Y             | numeric      | Hoehn & Yahr scale
+
+Structure of `data/features.csv`:
+
+| column name     | dtype        | description
+| -------------   | ----------   | -----------
+| ID              | str or int   | Unique identifier of each recording
+| feature_1_name  | numeric      | Feature values computed from raw audio
+| ...             | numeric      | ...
+| feature_N_name  | numeric      | Use as many features as you need
+
+### Repeat the experiments
+
+1. run `src/adjust_features.py` to get `data/features_adjusted.csv`
+2. run `src/plot_age.py` to get `results/age.pdf`
+3. run `src/correlations.py` to obtain `results/spearman.csv`
+3. configure and run `src/correlations.py` to obtain `results/pearson.csv`
+4. run `src/get_statistics.py` to obtain `results/stats_results.csv`
+5. run `src/XGBoost.py` to obtain feature importances and classification results
+6. run `src/XGBoost_leave-one-language-out.py` to obtain `results/leave-one-language-out.csv`
 
 
 ## License

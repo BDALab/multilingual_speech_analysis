@@ -12,82 +12,61 @@ clinical scores.
 
 # In[] variables + set the script
 
-input_filename = 'data/dataset_corr.xlsx'
+clinical_file_name = 'data/labels.csv'
+features_file_name = 'data/features_adjusted.csv'
 export_table = True
-spear_output_filename = 'results/spearman.xlsx'
-pears_output_filename = 'results/pearson.xlsx'
-scenario_list = ['duration_of_PD', 'LED', 'UPDRSIII', 'UPDRSIII-speech', 'H&Y']
-score_list = ['coeff', 'p-value', 'FDR_correction']
+correlation = 'spearman'  # or 'pearson'
+output_filename = f'results/{correlation}.csv'
+scenarios = ['duration_of_PD', 'LED', 'UPDRSIII', 'UPDRSIII-speech', 'H&Y']
+scores = ['coeff', 'p-value', 'FDR_correction']
 
-# prepare output excel
-if export_table:
-    os.makedirs(os.path.dirname(spear_output_filename), exist_ok=True)
-    os.makedirs(os.path.dirname(pears_output_filename), exist_ok=True)
-    writer_spear = pd.ExcelWriter(spear_output_filename)
-    writer_pears = pd.ExcelWriter(pears_output_filename)
+# load features
+df_feat = pd.read_csv(features_file_name, sep=';', index_col=0)
 
-for scenario in scenario_list:
+# get feature names
+features = df_feat.columns
+
+# prepare empty df
+df = pd.DataFrame(index=features, columns=pd.MultiIndex.from_product(
+    [scenarios, scores], names=['Scenarios', 'Scores']))
+
+for scenario in scenarios:
 
     # In[] load data
 
-    df_data = pd.read_excel(input_filename, sheet_name=scenario, index_col=0)
+    df_clin = pd.read_csv(
+        clinical_file_name, sep=';', index_col=0, usecols=['ID', scenario])
+    df_data = df_feat.copy().join(df_clin)
 
-    df_PD = df_data.loc[df_data['diagnosis'] == 'PD']
+    # In[] calculate correlation of each feature with scenario
 
-    df_feat = df_PD.drop(['diagnosis', scenario], axis=1)
-
-    # get features names
-    feature_list = list(df_feat)
-
-    # prepare tables
-    df_spear = pd.DataFrame(0.00, index=feature_list, columns=score_list)
-    df_pears = pd.DataFrame(0.00, index=feature_list, columns=score_list)
-
-    # In[] calculate Spearman and Pearson
-
-    for feature_name in feature_list:
+    for feature_name in features:
         # select vectors of features and clinical data
-        feat_vector = np.array(df_feat.loc[:, feature_name])
-        data_vector = np.array(df_PD.loc[:, scenario])
+        feat_vector = df_data.loc[:, feature_name].values
+        clin_vector = df_data.loc[:, scenario].values
 
-        # remove NaNs
+        # remove rows where the feature is NaN
         nan_mask_feat = np.isnan(feat_vector)
         feat_vector = feat_vector[~nan_mask_feat]
-        data_vector = data_vector[~nan_mask_feat]
+        clin_vector = clin_vector[~nan_mask_feat]
 
-        nan_mask_data = np.isnan(data_vector)
-        feat_vector = feat_vector[~nan_mask_data]
-        data_vector = data_vector[~nan_mask_data]
+        # remove rows where the scenario is NaN
+        nan_mask_clin = np.isnan(clin_vector)
+        feat_vector = feat_vector[~nan_mask_clin]
+        clin_vector = clin_vector[~nan_mask_clin]
 
-        # Spearman's rank correlation
-        coef_spear, p_spear = spearmanr(
-            feat_vector.flatten(), data_vector.flatten())
-        df_spear.loc[feature_name, score_list[0]] = round(coef_spear, 3)
-        df_spear.loc[feature_name, score_list[1]] = round(p_spear, 3)
+        # compute correlation coefficient, p-value and fdr correction
+        func = spearmanr if correlation == 'spearman' else pearsonr
+        coef, pval = func(feat_vector.flatten(), clin_vector.flatten())
+        df.loc[feature_name, scenario] = [coef, pval, np.nan]  # round(x, 3)
 
-        reject_spear, p_cor_spear = fdrcorrection(
-            np.array(list(df_spear['p-value'])), alpha=0.05, method='indep')
-        df_spear.loc[:, 'FDR_correction'] = p_cor_spear
+    # once the p-values for all featues are computed, compute fdrcorrections
+    all_pvals = df.loc[:, ('duration_of_PD', 'p-value')].values
+    _, fdrcorrs = fdrcorrection(all_pvals, alpha=0.05, method='indep')
+    df.loc[:, (scenario, 'FDR_correction')] = fdrcorrs
 
-        # Pearson's rank correlation
-        coef_pears, p_pears = pearsonr(
-            feat_vector.flatten(), data_vector.flatten())
-        df_pears.loc[feature_name, score_list[0]] = round(coef_pears, 3)
-        df_pears.loc[feature_name, score_list[1]] = round(p_pears, 3)
-
-        reject_pears, p_cor_pears = fdrcorrection(
-            np.array(list(df_spear['p-value'])), alpha=0.05, method='indep')
-        df_pears.loc[:, 'FDR_correction'] = p_cor_pears
-
-    if export_table:
-        df_spear.to_excel(writer_spear, sheet_name=scenario)
-        df_pears.to_excel(writer_pears, sheet_name=scenario)
-
-# save and close excel
 if export_table:
-    writer_spear.save()
-    writer_pears.save()
-
-# In[]
+    os.makedirs(os.path.dirname(output_filename), exist_ok=True)
+    df.to_csv(output_filename, sep=';')
 
 print('Script finished.')

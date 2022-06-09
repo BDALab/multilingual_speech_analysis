@@ -11,6 +11,12 @@ Script for computing:
  - ratio of PD patients that lie outside of normal interval of healthy controls
 """
 
+# TODO Daniel
+# load data from `data/features_adjusted.csv` and `data/labels.csv` instead
+# of `dataset_stats.xlsx`. Change output file names and types to csv.
+# Use `df = pd.read_csv(path, sep=';')` and `df.to_csv(path, sep=';')`.
+# Btw, with csv, you do not need any writer
+
 # In[] Set the script
 
 only_one_Feature = 0  # 1 = only one feature to process and show graph, 0 = process all features

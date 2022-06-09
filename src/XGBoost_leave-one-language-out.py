@@ -4,6 +4,12 @@ import sklearn.metrics as metrics
 from sklearn.metrics import accuracy_score, recall_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
 
+# TODO Daniel
+# load data from `data/features_adjusted.csv` and `data/labels.csv` instead
+# of `dataset_XGB.xlsx`. Change output file names and types to csv.
+# Use `df = pd.read_csv(path, sep=';')` and `df.to_csv(path, sep=';')`.
+# Btw, with csv, you do not need any writer
+
 # In[] variables
 
 # name of the excel file with features

@@ -15,17 +15,21 @@ sns.set_theme()
 
 # In[] Variables
 
-feature_file_name = "data/extracted_features.xlsx"
-clinical_file_name = "data/labels_data.xlsx"
-output_file_name = 'data/adjusted_features.xlsx'
+clinical_file_name = 'data/labels.csv'
+feature_file_name = 'data/features.csv'
+output_file_name = 'data/features_adjusted.csv'
+results_file_name = 'results/logistic_regression_coefficients.csv'
+
+# To be used when only_one_feature=True and to be formatted with feature_name
+fig_file_name_template = 'results/{}_effect.pdf'
 
 only_one_feature = False  # True = only one feature to process and show graph; False = adjust all features
 feature_name = 'TSK3-DUV'  # in the case of only_one_feature = True
 export_table = True  # True = export adjusted data and coefficients to excel
 
-# In[] read excel and create dataframes
-df_clin = pd.read_excel(clinical_file_name, index_col=0)
-df_feat = pd.read_excel(feature_file_name, index_col=0)
+# In[] read csv and create dataframe
+df_clin = pd.read_csv(clinical_file_name, sep=';', index_col=0)
+df_feat = pd.read_csv(feature_file_name, sep=';', index_col=0)
 
 if only_one_feature:
     feature_list = list([feature_name])
@@ -36,16 +40,13 @@ label_list = df_feat.index.values.tolist()
 
 # pd.options.display.float_format = '${:,.2f}'.format # to have the float in dataframe
 df_out = pd.DataFrame(0, index=label_list, columns=feature_list)
-df_age = pd.DataFrame(0, index=feature_list, columns=['age coef'])
-df_sex = pd.DataFrame(0, index=feature_list, columns=['sex coef'])
+df_lrc = pd.DataFrame(0, index=feature_list, columns=['age_coef', 'sex_coef'])
 
 # In[] Loc (get vectors)
 
 age = np.array(df_clin.loc[:, 'age']).reshape(-1, 1)
-
 sex = np.array(df_clin.loc[:, 'sex'])
 is_female = np.array((pd.get_dummies(sex)).loc[:, 'F'])
-
 diag = np.array(df_clin.loc[:, 'diagnosis'])
 is_PD = np.array((pd.get_dummies(diag)).loc[:, 'PD'])
 
@@ -124,25 +125,16 @@ for feature_name in feature_list:
     df_out[feature_name] = (y_out * max_feature).tolist()
 
     # In[] save regression coefficient
-
-    df_age.loc[feature_name, 'age coef'] = LR_coef[0]
-    df_sex.loc[feature_name, 'sex coef'] = LR_coef[1]
-
-    # In[] sort vectors with coefficients
-
-    df_age = df_age.sort_values(by='age coef', ascending=False,
-                                key=pd.Series.abs)
-    df_sex = df_sex.sort_values(by='sex coef', ascending=False,
-                                key=pd.Series.abs)
+    df_lrc.loc[feature_name, 'age coef'] = LR_coef[0]
+    df_lrc.loc[feature_name, 'sex coef'] = LR_coef[1]
 
 # In[] export datasets to excel
 
 if not only_one_feature and export_table:
     os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
-    with pd.ExcelWriter(output_file_name) as writer:
-        df_out.to_excel(writer, sheet_name='adjusted features')
-        df_age.to_excel(writer, sheet_name='age coef')
-        df_sex.to_excel(writer, sheet_name='sex coef')
+    os.makedirs(os.path.dirname(results_file_name), exist_ok=True)
+    df_out.to_csv(output_file_name, sep=';')
+    df_lrc.to_csv(results_file_name, sep=';')
 
 # In[] Plot the linear regression
 
@@ -182,7 +174,7 @@ if only_one_feature:
     plt.title(result)
     plt.xlabel('age')
     plt.ylabel(feature_name)
-    plt.savefig('results/' + feature_name + '_effect.pdf')
+    plt.savefig(fig_file_name_template.format(feature_name))
     plt.close()
 
 # In[]

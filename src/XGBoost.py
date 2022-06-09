@@ -1,4 +1,4 @@
-
+import shap
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -9,7 +9,11 @@ from sklearn.model_selection import RandomizedSearchCV, cross_validate
 from sklearn.metrics import make_scorer, confusion_matrix, accuracy_score, auc
 from sklearn.metrics import matthews_corrcoef, recall_score, f1_score, roc_curve
 
-import shap
+# TODO Daniel
+# load data from `data/features_adjusted.csv` and `data/labels.csv` instead
+# of `dataset_XGB.xlsx`. Change output file names and types to csv.
+# Use `df = pd.read_csv(path, sep=';')` and `df.to_csv(path, sep=';')`.
+# Btw, with csv, you do not need any writer
 
 # In[] variables
 
