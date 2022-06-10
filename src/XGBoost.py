@@ -25,6 +25,7 @@ clinical_file_name = 'data/labels.csv'
 output_filename_imp = 'results/feature_importances.xlsx'  # feature importances
 output_filename_per = 'results/model_performance.pdf'  # model performances (cross-validation)
 output_filename_cross = 'results/cross_language.xlsx'  # cross-language validation
+output_filename_shap = 'results/SHAP_all.pdf'  # shap values of the model trained by all languages
 
 scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT', 'all'])  # nationality (all = all nationality together)
 
@@ -221,14 +222,14 @@ for scenario in scenario_list:
         df_importances.to_excel(writer_imp, sheet_name=scenario)
 
     # In[] Shap values
+    if scenario == 'all':
+        shap_values = shap.TreeExplainer(model).shap_values(X)
 
-    shap_values = shap.TreeExplainer(model).shap_values(X)
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        ax = shap.summary_plot(shap_values, X, max_display=17)
 
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    ax = shap.summary_plot(shap_values, X, max_display=17)
-
-    fig.savefig('results/SHAP_' + scenario + '_summary.pdf')
-    plt.close()
+        fig.savefig(output_filename_shap)
+        plt.close()
 
     # In[] Cross-language (transfer learning)
 
