@@ -9,45 +9,60 @@ from sklearn.model_selection import RandomizedSearchCV, cross_validate
 from sklearn.metrics import make_scorer, confusion_matrix, accuracy_score, auc
 from sklearn.metrics import matthews_corrcoef, recall_score, f1_score, roc_curve
 
-# TODO Daniel
-# load data from `data/features_adjusted.csv` and `data/labels.csv` instead
-# of `dataset_XGB.xlsx`. Change output file names and types to csv.
-# Use `df = pd.read_csv(path, sep=';')` and `df.to_csv(path, sep=';')`.
-# Btw, with csv, you do not need any writer
+"""
+Script for computing machine learning model performance:
+ - stratified k fold cross-validation
+ - cross-language validation
+ - feature importances of model trained by all labels of particular language
+ - SHAP values of model trained by all languages
+"""
 
 # In[] variables
 
-# name of the excel file with features
-file_name = 'data/dataset_XGB.xlsx'
+features_file_name = 'data/features_adjusted.csv'
+clinical_file_name = 'data/labels.csv'
 
-# name of the folder where results (tables and graphs) will be stored
-folder_save = 'results'
+output_filename_imp = 'results/feature_importances.xlsx'  # feature importances
+output_filename_per = 'results/model_performance.pdf'  # model performances (cross-validation)
+output_filename_cross = 'results/cross_language.xlsx'  # cross-language validation
 
-# name of specific sheets in excel file (file_name)
-scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT', 'all'])
+scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT', 'all'])  # nationality (all = all nationality together)
 
 only_one_scenario = False  # True = process just one scenario (otherwise loop)
 scenario = 'IL'  # choose language in the case of only_one_scenario = True
 export_table = True  # export four tables in total
-seed = 42  # random search and kfold
+seed = 42  # for random search and cross-validation
 
 # In[] Set the script
 
 if export_table:
-    writer_imp = pd.ExcelWriter(folder_save + '/feature_importances.xlsx')
-    writer_per = pd.ExcelWriter(folder_save + '/model_performance.xlsx')
+    writer_imp = pd.ExcelWriter(output_filename_imp)
+    writer_per = pd.ExcelWriter(output_filename_per)
 
     if not only_one_scenario:
-        writer_cross = pd.ExcelWriter(folder_save + '/cross_language.xlsx')
-        writer_cross_mcc = pd.ExcelWriter(folder_save + '/cross_language_mcc.xlsx')
+        writer_cross = pd.ExcelWriter(output_filename_cross)
 
 if only_one_scenario:
     scenario_list = list([scenario])
 
+# In[] Load data
+
+df_feat = pd.read_csv(features_file_name, sep=';', index_col=0)
+df_clin = pd.read_csv(clinical_file_name, sep=';', index_col=0, usecols=['ID', 'nationality', 'diagnosis'])
+
+df_data = df_feat.copy().join(df_clin['diagnosis'])
+
 metric_list = ['mcc', 'F1', 'AUC', 'acc', 'sen', 'spe']  # list of metrics in final table
 df_performance = pd.DataFrame(0.00, index=scenario_list, columns=metric_list)  # create empty dataframe
-df_cross_language = pd.DataFrame(0.00, index=scenario_list, columns=metric_list)  # create empty dataframe
-df_cross_language_MCC = pd.DataFrame(0.00, index=scenario_list, columns=scenario_list)  # create empty dataframe
+df_cross_language = df_performance.copy()
+
+
+# In[] Replace HC for 0 and PD for 1
+
+def replace_diagnosis_with_numbers(df):
+    df_out = df.replace(['HC', 'PD'], [0, 1])
+    return df_out
+
 
 # In[] Define the classifier settings
 
@@ -88,11 +103,6 @@ def roc_auc(y_true, y_pred):
     fpr, tpr, _ = roc_curve(y_true, y_pred, pos_label=1)
     return auc(fpr, tpr)
 
-
-def sensitivity_score(y_true, y_pred):
-    return recall_score(y_true, y_pred)
-
-
 def specificity_score(y_true, y_pred):
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     return tn / (tn + fp)
@@ -107,19 +117,22 @@ for scenario in scenario_list:
     count_X += 1
 
     # In[] Load the feature matrix
-    df_feat = pd.read_excel(file_name, sheet_name=scenario, index_col=0)
-
-    df_feat = df_feat.replace(['PD'], 1)
-    df_feat = df_feat.replace(['HC'], 0)
 
     if scenario == 'all':
-        X = df_feat.iloc[:, 0:-2].values
-        y = df_feat.iloc[:, -2].values
+        df_scenario = df_data.copy()
+        df_scenario["class"] = df_clin["nationality"] + '-' + df_data["diagnosis"]
+        df_scenario = replace_diagnosis_with_numbers(df_scenario)
+
+        X = df_scenario.iloc[:, 0:-2].values
+        y = df_scenario.iloc[:, -2].values
         # Aux series for stratification according to language-diagnosis
-        r = df_feat.iloc[:, -1].values
+        r = df_scenario.iloc[:, -1].values
     else:
-        X = df_feat.iloc[:, 0:-1].values
-        y = df_feat.iloc[:, -1].values
+        df_scenario = df_data.loc[df_clin['nationality'] == scenario]
+        df_scenario = replace_diagnosis_with_numbers(df_scenario)
+
+        X = df_scenario.iloc[:, 0:-1].values
+        y = df_scenario.iloc[:, -1].values
         r = y  # Only basic stratification
 
     # In[] Search for the best hyper-parameters
@@ -158,7 +171,7 @@ for scenario in scenario_list:
         'F1': make_scorer(f1_score, greater_is_better=True),
         "roc_auc": make_scorer(roc_auc, greater_is_better=True),
         "acc": make_scorer(accuracy_score, greater_is_better=True),
-        "sen": make_scorer(sensitivity_score, greater_is_better=True),
+        "sen": make_scorer(recall_score, greater_is_better=True),
         "spe": make_scorer(specificity_score, greater_is_better=True)
     }
 
@@ -197,7 +210,6 @@ for scenario in scenario_list:
     model.fit(X, y)
 
     feature_list = list(df_feat.columns)
-    feature_list.pop()
     df_importances = pd.DataFrame(
         model.feature_importances_, index=feature_list, columns=['importance'])
     df_importances = df_importances.sort_values(
@@ -210,59 +222,46 @@ for scenario in scenario_list:
 
     # In[] Shap values
 
-    X = df_feat.iloc[:, 0:-1]
     shap_values = shap.TreeExplainer(model).shap_values(X)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
     ax = shap.summary_plot(shap_values, X, max_display=17)
 
-    fig.savefig(folder_save + '/SHAP_' + scenario + '_summary.pdf')
-    plt.close()
-
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    ax = shap.summary_plot(shap_values, X, max_display=17, plot_type="bar")
-    fig.savefig(folder_save + '/SHAP_' + scenario + '_mean.pdf')
+    fig.savefig('results/SHAP_' + scenario + '_summary.pdf')
     plt.close()
 
     # In[] Cross-language (transfer learning)
 
     if not only_one_scenario:
+        if not scenario == 'all':
+            for scenario_test in scenario_list:
 
-        for scenario_test in scenario_list:
+                df_scenario_test = df_data.loc[df_clin['nationality'] == scenario_test]
+                df_scenario_test = replace_diagnosis_with_numbers(df_scenario_test)
 
-            df_feat_test = pd.read_excel(
-                file_name, sheet_name=scenario_test, index_col=0)
+                X_test = df_scenario_test.iloc[:, 0:-1].values
+                y_test = df_scenario_test.iloc[:, -1].values
 
-            df_feat_test = df_feat_test.replace(['PD'], 1)
-            df_feat_test = df_feat_test.replace(['HC'], 0)
+                y_pred = model.predict(X_test)
 
-            X_test = df_feat_test.iloc[:, 0:-1].values
-            y_test = df_feat_test.iloc[:, -1].values
+                mcc = metrics.matthews_corrcoef(y_test, y_pred)
+                F1 = metrics.f1_score(y_test, y_pred)
+                AUC = roc_auc(y_test, y_pred)
+                acc = metrics.accuracy_score(y_test, y_pred)
+                sen = recall_score(y_test, y_pred)
+                spe = specificity_score(y_test, y_pred)
 
-            y_pred = model.predict(X_test)
+                df_cross_language.loc[scenario_test, :] = [mcc, F1, AUC, acc, sen, spe]
 
-            mcc = metrics.matthews_corrcoef(y_test, y_pred)
-            F1 = metrics.f1_score(y_test, y_pred)
-            AUC = roc_auc(y_test, y_pred)
-            acc = metrics.accuracy_score(y_test, y_pred)
-            sen = sensitivity_score(y_test, y_pred)
-            spe = specificity_score(y_test, y_pred)
+            # Export table
 
-            df_cross_language.loc[scenario_test, :] = [mcc, F1, AUC, acc, sen, spe]
-            df_cross_language_MCC.loc[scenario_test, scenario] = round(mcc, 2)
-
-        # Export table
-
-        if export_table:
-            df_cross_language.to_excel(writer_cross, sheet_name=scenario)
+            if export_table:
+                df_cross_language.to_excel(writer_cross, sheet_name='Training scenario: ' + scenario)
 
 # In[] export tables
 
 if export_table:
     df_performance.to_excel(writer_per, sheet_name='performance')
-
-    if not only_one_scenario:
-        df_cross_language_MCC.to_excel(writer_cross_mcc, sheet_name='MCC')
 
 # In[] save and close excel files
 if export_table:
@@ -271,7 +270,6 @@ if export_table:
 
     if not only_one_scenario:
         writer_cross.save()
-        writer_cross_mcc.save()
 
 # In[]
 

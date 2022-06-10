@@ -24,3 +24,7 @@ plt.legend(loc='lower left')
 os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
 fig.savefig(output_file_name, bbox_inches='tight')
 plt.close()
+
+# In[]
+
+print('Script finished.')

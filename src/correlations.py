@@ -12,11 +12,11 @@ clinical scores.
 
 # In[] variables + set the script
 
-clinical_file_name = 'data/labels.csv'
 features_file_name = 'data/features_adjusted.csv'
+clinical_file_name = 'data/labels.csv'
 export_table = True
 correlation = 'spearman'  # or 'pearson'
-output_filename = f'results/{correlation}.csv'
+output_filename = f'results/{correlation}.xlsx'
 scenarios = ['duration_of_PD', 'LED', 'UPDRSIII', 'UPDRSIII-speech', 'H&Y']
 scores = ['coeff', 'p-value', 'FDR_correction']
 
@@ -61,12 +61,12 @@ for scenario in scenarios:
         df.loc[feature_name, scenario] = [coef, pval, np.nan]  # round(x, 3)
 
     # once the p-values for all featues are computed, compute fdrcorrections
-    all_pvals = df.loc[:, ('duration_of_PD', 'p-value')].values
+    all_pvals = df.loc[:, (scenario, 'p-value')].values
     _, fdrcorrs = fdrcorrection(all_pvals, alpha=0.05, method='indep')
     df.loc[:, (scenario, 'FDR_correction')] = fdrcorrs
 
 if export_table:
     os.makedirs(os.path.dirname(output_filename), exist_ok=True)
-    df.to_csv(output_filename, sep=';')
+    df.to_excel(output_filename)
 
 print('Script finished.')

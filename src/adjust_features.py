@@ -18,7 +18,7 @@ sns.set_theme()
 clinical_file_name = 'data/labels.csv'
 feature_file_name = 'data/features.csv'
 output_file_name = 'data/features_adjusted.csv'
-results_file_name = 'results/linear_regression_coefficients.csv'
+results_file_name = 'results/linear_regression_coefficients.xlsx'
 
 # To be used when only_one_feature=True and to be formatted with feature_name
 fig_file_name_template = 'results/{}_effect.pdf'
@@ -134,7 +134,7 @@ if not only_one_feature and export_table:
     os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
     os.makedirs(os.path.dirname(results_file_name), exist_ok=True)
     df_out.to_csv(output_file_name, sep=';')
-    df_lrc.to_csv(results_file_name, sep=';')
+    df_lrc.to_excel(results_file_name)
 
 # In[] Plot the linear regression
 

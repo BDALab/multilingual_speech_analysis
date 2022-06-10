@@ -11,63 +11,68 @@ Script for computing:
  - ratio of PD patients that lie outside of normal interval of healthy controls
 """
 
-# TODO Daniel
-# load data from `data/features_adjusted.csv` and `data/labels.csv` instead
-# of `dataset_stats.xlsx`. Change output file names and types to csv.
-# Use `df = pd.read_csv(path, sep=';')` and `df.to_csv(path, sep=';')`.
-# Btw, with csv, you do not need any writer
-
 # In[] Set the script
 
-only_one_Feature = 0  # 1 = only one feature to process and show graph, 0 = process all features
+only_one_Feature = False  # True = only one feature to process and show graph, False = process all features
 
 # in the case of all features
-only_one_scenario = 0  # 1 = one scenario, 0 = iterate over all scenarios and save dfs as different excel sheets
-export_table = 1  # 1 = export results to excel file, 0 = do nothing
+only_one_scenario = False  # True = one scenario, False = all scenarios and save results as different excel sheets
 
-# In[] Variables (in the case of 1 feature and 1 scenario)
+export_table = True  # True = export results to excel file, False = do nothing
 
-file_name = 'data/dataset_stats.xlsx'  # name of the excel file
-scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT', 'all']  # as names of sheets in excel file
+# In[] Variables
 
-scenario = 'IT'  # in the case of only_one_scenario = 1
-feature_name = 'TSK2-EEVOL'  # in the case of 1 feature
+features_file_name = 'data/features_adjusted.csv'
+clinical_file_name = 'data/labels.csv'
+output_filename_stats = 'results/stats_results.xlsx'
+output_filename_pdf = 'results/out_of_norm.pdf'  # in the case of only_one_Feature = True
 
-# In[] Loop for scenarios
+scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT']  # languages
+score_list = ['Mann-Whitney', 'FDR_correction', 'significance',
+              'mean_HC', 'mean_PD', 'mean',
+              'med_HC', 'med_PD', 'med',
+              'std_HC', 'std_PD', 'std',
+              'RAT_L', 'RAT_H']
 
-if only_one_scenario == 1:
+scenario = 'IT'  # in the case of only_one_scenario = True
+feature_name = 'TSK2-RFA2'  # in the case of only_one_Feature = True
+
+# In[] Load data
+
+df_feat = pd.read_csv(features_file_name, sep=';', index_col=0)
+df_clin = pd.read_csv(clinical_file_name, sep=';', index_col=0, usecols=['ID', 'nationality', 'diagnosis'])
+
+df_data = df_feat.copy().join(df_clin['diagnosis'])
+
+if export_table:
+    writer_RAT = pd.ExcelWriter(output_filename_stats)
+
+# In[] Loop through scenarios
+
+if only_one_scenario:
     scenario_list = list([scenario])
-
-if export_table == 1:
-    writer_RAT = pd.ExcelWriter('results/stats_results.xlsx')
 
 for scenario in scenario_list:
 
-    df_feat = pd.read_excel(file_name, sheet_name=scenario, index_col=0)  # load table
+    df_scenario = df_data.loc[df_clin['nationality'] == scenario]
 
-    if only_one_Feature == 1:
+    if scenario == 'IT':
+        df_scenario = df_scenario.drop('TSK7-relSDSD', axis=1)
+
+    if only_one_Feature:
         feature_list = list([feature_name])
     else:
-        feature_list = list(df_feat.columns)
-        label_list = df_feat.index.values.tolist()
+        feature_list = list(df_scenario.columns)
+        feature_list.pop()
+
+        # In[] Prepare table
+
+    df_out = pd.DataFrame(0.00, index=feature_list, columns=score_list)
 
     # In[] divide data to HC and PD
 
-    df_HC = df_feat.loc[df_feat['diagnosis'] == 'HC']  # dataframe of Healthy controls
-    df_PD = df_feat.loc[df_feat['diagnosis'] == 'PD']  # dataframe of Parkinson's disease
-
-    # In[] prepare statistics and RAT-score dataframe
-
-    score_list = ['Mann-Whitney', 'FDR_correction', 'significance',
-                  'mean_HC', 'mean_PD', 'mean',
-                  'med_HC', 'med_PD', 'med',
-                  'std_HC', 'std_PD', 'std',
-                  'RAT_L', 'RAT_H']
-
-    if only_one_Feature == 0:
-        feature_list.pop()  # drop the diagnosis column out
-
-    df_out = pd.DataFrame(0.00, index=feature_list, columns=score_list)
+    df_HC = df_scenario.loc[df_scenario['diagnosis'] == 'HC']  # dataframe of Healthy controls
+    df_PD = df_scenario.loc[df_scenario['diagnosis'] == 'PD']  # dataframe of Parkinson's disease
 
     # In[] Select the feature and preprocess
 
@@ -192,7 +197,7 @@ for scenario in scenario_list:
         df_out.loc[feature_name, 'RAT_H'] = ratio_PD_R
 
         # In[] show the loop progression
-        c = c + 1
+        c += 1
         print('Scenario: ' + scenario + ' - Features done: ' + str(c) + '/' + str(len(feature_list)))
 
     # In[] FDR correction for MW test
@@ -204,14 +209,14 @@ for scenario in scenario_list:
 
     # In[] export dataset
 
-    if export_table == 1:
+    if export_table:
         df_out.to_excel(writer_RAT, sheet_name=scenario)
 
     # In[] plot the distribution (in the case of only one feature)
 
     sns.set_theme()
 
-    if only_one_Feature == 1:
+    if only_one_Feature:
         plt.figure(1)
         plt.clf()
         # plt.subplot(211)
@@ -246,17 +251,17 @@ for scenario in scenario_list:
                     ('PD median = %.3f' % z_median_PD),
 
                     ('PD < Q1 - 1.5*IQR = %i (%.1f %%)' % (n_PD_L, ratio_PD_L)),
-                    ('PD > Q3 + 1.5*IQR = %i (%.1f %%)' % (n_PD_R, ratio_PD_R)),'boundaries for outliers',
+                    ('PD > Q3 + 1.5*IQR = %i (%.1f %%)' % (n_PD_R, ratio_PD_R)), 'boundaries for outliers',
                     'HC', 'PD'])
 
         plt.plot(np.array([upper_limit, upper_limit]), np.array([0, limits[1] * 0.95]), 'k')
 
         plt.xlabel('z-score: %s (%s)' % (feature_name, scenario))
-        plt.savefig('results/out_of_norm.pdf')
+        plt.savefig(output_filename_pdf)
         plt.close()
 
 # In[] save and close excel files
-if export_table == 1:
+if export_table:
     writer_RAT.save()
 
 # In[]

@@ -4,44 +4,51 @@ import sklearn.metrics as metrics
 from sklearn.metrics import accuracy_score, recall_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
 
-# TODO Daniel
-# load data from `data/features_adjusted.csv` and `data/labels.csv` instead
-# of `dataset_XGB.xlsx`. Change output file names and types to csv.
-# Use `df = pd.read_csv(path, sep=';')` and `df.to_csv(path, sep=';')`.
-# Btw, with csv, you do not need any writer
+"""
+Script for computing machine learning model performance with leave-one-language-out validation technique:
+"""
 
 # In[] variables
 
-# name of the excel file with features
-file_name = 'dataset_XGB.xlsx'
+features_file_name = 'data/features_adjusted.csv'
+clinical_file_name = 'data/labels.csv'
+output_filename = 'results/leave_one_language_out.xlsx'  # cross-language validation
 
-# name of the folder where results (tables and graphs) will be stored
-folder_save = 'results'
-
-# name of specific sheets in excel file (file_name)
-scenario_list = list(['CZ', 'US', 'IL', 'CO', 'IT'])
-
-export_table = True  # export four tables in total
+scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT']
+metric_list = ['MCC', 'ACC', 'SEN', 'SPE']
 
 seed = 42  # random search
 
+# In[] set the script
+
+export_table = True  # export four tables in total
+
+# In[] Load data
+
+df_feat = pd.read_csv(features_file_name, sep=';', index_col=0)
+df_clin = pd.read_csv(clinical_file_name, sep=';', index_col=0, usecols=['ID', 'nationality', 'diagnosis'])
+
+df_data = df_feat.copy().join(df_clin['diagnosis'])
+
+
+# In[] Replace HC for 0 and PD for 1
+
+def replace_diagnosis_with_numbers(df):
+    df_out = df.replace(['HC', 'PD'], [0, 1])
+    return df_out
+
 
 # In[] Define the classification metrics
-def sensitivity_score(y_true, y_pred):
-    return recall_score(y_true, y_pred)
-
 
 def specificity_score(y_true, y_pred):
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     return tn / (tn + fp)
 
-# In[] Set the script
 
+# In[] Prepare the table
 
 if export_table:
-    writer_cross = pd.ExcelWriter(folder_save + '/leave-one-language-out.xlsx')
-
-metric_list = ['MCC', 'ACC', 'SEN', 'SPE']
+    writer_cross = pd.ExcelWriter(output_filename)
 
 # create empty dataframe
 df_cross_language = pd.DataFrame(0.0, index=metric_list, columns=scenario_list)
@@ -82,12 +89,10 @@ search_settings = {
 
 for scenario_test in scenario_list:
 
-    df_feat_test = pd.read_excel(
-        file_name, sheet_name=scenario_test, index_col=0)
-    feature_list = list(df_feat_test.columns)
-    df_feat_train = df_feat_test.copy()
+    # In[] create training and testing dataframes
 
-    # In[] Load datasets and merge
+    df_scenario_test = df_data.loc[df_clin['nationality'] == scenario_test]
+    df_scenario_train = df_scenario_test.copy()
 
     scenario_list_train = scenario_list.copy()
 
@@ -95,21 +100,19 @@ for scenario_test in scenario_list:
     scenario_list_train.remove(scenario_test)
 
     for scenario_train in scenario_list_train:
-        # Load the feature matrix
-        df_feat = pd.read_excel(
-            file_name, sheet_name=scenario_train, index_col=0)
-        df_feat_train = pd.concat([df_feat_train, df_feat])
 
-    df_feat_train.drop(index=df_feat_train.index[:df_feat_test.shape[0]],
-                       axis=0, inplace=True)
+        # Load the feature matrix and merge
+        df_scenario = df_data.loc[df_clin['nationality'] == scenario_train]
+        df_scenario_train = pd.concat([df_scenario_train, df_scenario])
+
+    df_scenario_train.drop(index=df_scenario_train.index[:df_scenario_test.shape[0]], axis=0, inplace=True)
 
     # In[] Divide into HC and PD
 
-    df_feat_train = df_feat_train.replace(['PD'], 1)
-    df_feat_train = df_feat_train.replace(['HC'], 0)
+    df_scenario_train = replace_diagnosis_with_numbers(df_scenario_train)
 
-    X_train = df_feat_train.iloc[:, 0:-1].values
-    y_train = df_feat_train.iloc[:, -1].values
+    X_train = df_scenario_train.iloc[:, 0:-1].values
+    y_train = df_scenario_train.iloc[:, -1].values
 
     # In[] Search for the best hyper-parameters
 
@@ -135,17 +138,16 @@ for scenario_test in scenario_list:
     model = xgb.XGBClassifier(**random_search.best_params_)
     model.fit(X_train, y_train)
 
-    df_feat_test = df_feat_test.replace(['PD'], 1)
-    df_feat_test = df_feat_test.replace(['HC'], 0)
+    df_scenario_test = replace_diagnosis_with_numbers(df_scenario_test)
 
-    X_test = df_feat_test.iloc[:, 0:-1].values
-    y_test = df_feat_test.iloc[:, -1].values
+    X_test = df_scenario_test.iloc[:, 0:-1].values
+    y_test = df_scenario_test.iloc[:, -1].values
 
     y_pred = model.predict(X_test)
 
     mcc = metrics.matthews_corrcoef(y_test, y_pred)
     acc = accuracy_score(y_test, y_pred)
-    sen = sensitivity_score(y_test, y_pred)
+    sen = recall_score(y_test, y_pred)
     spe = specificity_score(y_test, y_pred)
 
     df_cross_language.loc['MCC', scenario_test] = round(mcc, 2)
@@ -156,11 +158,10 @@ for scenario_test in scenario_list:
 # In[] export tables
 
 if export_table:
-
-    df_cross_language.to_excel(
-        writer_cross, sheet_name='leave-one-language-out')
+    df_cross_language.to_excel(writer_cross, sheet_name='leave-one-language-out')
 
 # In[] save and close excel files
+
 if export_table:
     writer_cross.save()
 
