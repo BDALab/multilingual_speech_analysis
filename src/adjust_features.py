@@ -40,6 +40,7 @@ label_list = df_feat.index.values.tolist()
 
 # pd.options.display.float_format = '${:,.2f}'.format # to have the float in dataframe
 df_out = pd.DataFrame(0, index=label_list, columns=feature_list)
+df_out.index.name = 'ID'
 df_lrc = pd.DataFrame(0, index=feature_list, columns=['age_coef', 'sex_coef'])
 
 # In[] Loc (get vectors)

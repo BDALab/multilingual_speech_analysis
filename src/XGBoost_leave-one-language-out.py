@@ -10,22 +10,31 @@ Script for computing machine learning model performance with leave-one-language-
 
 # In[] variables
 
+features_list = ['TSK3-HRF', 'TSK3-NAQ', 'TSK3-QOQ', 'TSK3-relF0SD', 'TSK3-Jitter (PPQ)', 'TSK2-RFA1', 'TSK2-RFA2',
+                 'TSK2-#loc_max', 'TSK2-relF2SD', 'TSK2-#lndmrk', 'TSK7-relSDSD', 'TSK7-COV', 'TSK7-RI', 'TSK2-relF0SD',
+                 'TSK2-SPIR']  # robust features according to statistical analysis
+
 features_file_name = 'data/features_adjusted.csv'
 clinical_file_name = 'data/labels.csv'
 output_filename = 'results/leave_one_language_out.xlsx'  # cross-language validation
 
 scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT']
-metric_list = ['MCC', 'ACC', 'SEN', 'SPE']
+metric_list = ['mcc', 'acc', 'sen', 'spe']
 
 seed = 42  # random search
 
 # In[] set the script
 
+all_features = True  # False = use features in features_list
 export_table = True  # export four tables in total
 
 # In[] Load data
 
-df_feat = pd.read_csv(features_file_name, sep=';', index_col=0)
+if all_features:
+    df_feat = pd.read_csv(features_file_name, sep=';', index_col=0)
+else:
+    df_feat = pd.read_csv(features_file_name, sep=';', index_col=0, usecols=['ID'] + features_list)
+
 df_clin = pd.read_csv(clinical_file_name, sep=';', index_col=0, usecols=['ID', 'nationality', 'diagnosis'])
 
 df_data = df_feat.copy().join(df_clin['diagnosis'])
@@ -150,10 +159,10 @@ for scenario_test in scenario_list:
     sen = recall_score(y_test, y_pred)
     spe = specificity_score(y_test, y_pred)
 
-    df_cross_language.loc['MCC', scenario_test] = round(mcc, 2)
-    df_cross_language.loc['ACC', scenario_test] = round(acc, 2)
-    df_cross_language.loc['SEN', scenario_test] = round(sen, 2)
-    df_cross_language.loc['SPE', scenario_test] = round(spe, 2)
+    df_cross_language.loc['mcc', scenario_test] = round(mcc, 2)
+    df_cross_language.loc['acc', scenario_test] = round(acc, 2)
+    df_cross_language.loc['sen', scenario_test] = round(sen, 2)
+    df_cross_language.loc['spe', scenario_test] = round(spe, 2)
 
 # In[] export tables
 
