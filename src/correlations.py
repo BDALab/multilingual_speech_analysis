@@ -10,17 +10,21 @@ Script for computing the Pearson and Spearman correlation of features and
 clinical scores.
 """
 
-# In[] variables + set the script
+# In[] Set the script
+
+export_table = True
+correlation = 'spearman'  # or 'pearson'
+
+# In[] Variables
 
 features_file_name = 'data/features_adjusted.csv'
 clinical_file_name = 'data/labels.csv'
-export_table = True
-correlation = 'spearman'  # or 'pearson'
 output_filename = f'results/{correlation}.xlsx'
+
 scenarios = ['duration_of_PD', 'LED', 'UPDRSIII', 'UPDRSIII-speech', 'H&Y']
 scores = ['coeff', 'p-value', 'FDR_correction']
 
-# load features
+# In[] Load data
 df_feat = pd.read_csv(features_file_name, sep=';', index_col=0)
 
 # get feature names
@@ -30,6 +34,8 @@ features = df_feat.columns
 df = pd.DataFrame(index=features, columns=pd.MultiIndex.from_product(
     [scenarios, scores], names=['Scenarios', 'Scores']))
 
+# In[] Loop through scenarios
+
 for scenario in scenarios:
 
     # In[] load data
@@ -38,7 +44,7 @@ for scenario in scenarios:
         clinical_file_name, sep=';', index_col=0, usecols=['ID', scenario])
     df_data = df_feat.copy().join(df_clin)
 
-    # In[] calculate correlation of each feature with scenario
+    # In[] Calculate correlation of each feature with scenario
 
     for feature_name in features:
         # select vectors of features and clinical data
@@ -60,13 +66,17 @@ for scenario in scenarios:
         coef, pval = func(feat_vector.flatten(), clin_vector.flatten())
         df.loc[feature_name, scenario] = [coef, pval, np.nan]  # round(x, 3)
 
-    # once the p-values for all featues are computed, compute fdrcorrections
+    # Compute false discovery rate
     all_pvals = df.loc[:, (scenario, 'p-value')].values
     _, fdrcorrs = fdrcorrection(all_pvals, alpha=0.05, method='indep')
     df.loc[:, (scenario, 'FDR_correction')] = fdrcorrs
 
+# In[] Export tables
+
 if export_table:
     os.makedirs(os.path.dirname(output_filename), exist_ok=True)
     df.to_excel(output_filename)
+
+# In[]
 
 print('Script finished.')

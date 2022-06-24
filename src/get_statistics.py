@@ -69,7 +69,7 @@ for scenario in scenario_list:
 
     df_out = pd.DataFrame(0.00, index=feature_list, columns=score_list)
 
-    # In[] divide data to HC and PD
+    # In[] Divide data to HC and PD
 
     df_HC = df_scenario.loc[df_scenario['diagnosis'] == 'HC']  # dataframe of Healthy controls
     df_PD = df_scenario.loc[df_scenario['diagnosis'] == 'PD']  # dataframe of Parkinson's disease
@@ -84,7 +84,7 @@ for scenario in scenario_list:
         feature_HC = np.array(df_HC.loc[:, feature_name])
         feature_PD = np.array(df_PD.loc[:, feature_name])
 
-        # In[] remove NaN
+        # In[] Remove NaN
 
         # HC
         nan_mask_HC = np.isnan(feature_HC)
@@ -106,7 +106,7 @@ for scenario in scenario_list:
 
         MW_U, MW_p_value = mannwhitneyu(feature_noNaN_HC, feature_noNaN_PD, method="auto")  # Mann-Whitney U test
 
-        # In[] (norm data to HC) z-scores and calculate geometric features
+        # In[] Normalise data to HC (z-scores) and calculate geometric features
 
         # ----- HC -----
         z_score_HC = (feature_noNaN_HC - np.mean(feature_noNaN_HC)) / np.std(feature_noNaN_HC)
@@ -207,12 +207,12 @@ for scenario in scenario_list:
     df_out.loc[:, 'significance'] = rejected*1
     df_out.loc[:, 'FDR_correction'] = p_values_cor
 
-    # In[] export dataset
+    # In[] Export tables
 
     if export_table:
         df_out.to_excel(writer_RAT, sheet_name=scenario)
 
-    # In[] plot the distribution (in the case of only one feature)
+    # In[] Plot the distribution (in the case of only one feature)
 
     sns.set_theme()
 
@@ -260,7 +260,8 @@ for scenario in scenario_list:
         plt.savefig(output_filename_pdf)
         plt.close()
 
-# In[] save and close excel files
+# In[] Save and close excel files
+
 if export_table:
     writer_RAT.save()
 

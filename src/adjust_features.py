@@ -13,6 +13,11 @@ The aim is to remove the effects of gender and age from the features.
 
 sns.set_theme()
 
+# In[] Set the script
+
+only_one_feature = False  # True = only one feature to process and show graph; False = adjust all features
+export_table = True  # True = export adjusted data and coefficients to .csv file
+
 # In[] Variables
 
 clinical_file_name = 'data/labels.csv'
@@ -22,12 +27,9 @@ results_file_name = 'results/linear_regression_coefficients.xlsx'
 
 # To be used when only_one_feature=True and to be formatted with feature_name
 fig_file_name_template = 'results/{}_effect.pdf'
-
-only_one_feature = False  # True = only one feature to process and show graph; False = adjust all features
 feature_name = 'TSK3-DUV'  # in the case of only_one_feature = True
-export_table = True  # True = export adjusted data and coefficients to excel
 
-# In[] read csv and create dataframe
+# In[] Read csv and create dataframe
 df_clin = pd.read_csv(clinical_file_name, sep=';', index_col=0)
 df_feat = pd.read_csv(feature_file_name, sep=';', index_col=0)
 
@@ -61,7 +63,7 @@ age = age.flatten()
 for feature_name in feature_list:
     feature = np.array(df_feat.loc[:, feature_name])  # .reshape(-1,1)
 
-    # In[] find NaNs
+    # In[] Find NaNs
 
     NaN_vector = np.argwhere(np.isnan(feature) == True)[:, 0]
 
@@ -71,12 +73,12 @@ for feature_name in feature_list:
     feature = imputer_mean.fit_transform(feature)
     feature = feature.flatten()
 
-    # In[] normalize the feature (to be able to compare coeffs of all features)
+    # In[] Normalize the feature (to be able to compare coeffs of all features)
 
     max_feature = max(feature)
     feature = feature / max_feature
 
-    # In[] divide into HC and PD
+    # In[] Divide into HC and PD
 
     feature_HC = feature[is_PD == 0]
     feature_PD = feature[is_PD == 1]
@@ -120,16 +122,16 @@ for feature_name in feature_list:
 
     y_reg_new = LR_inter2 + LR_coef2[0] * age_HC + LR_coef2[1] * is_female_HC
 
-    # In[] return NaNs and save vector
+    # In[] Return NaNs and save vector
 
     y_out[NaN_vector] = np.NaN
     df_out[feature_name] = (y_out * max_feature).tolist()
 
-    # In[] save regression coefficient
+    # In[] Save regression coefficient
     df_lrc.loc[feature_name, 'age_coef'] = LR_coef[0]
     df_lrc.loc[feature_name, 'sex_coef'] = LR_coef[1]
 
-# In[] export datasets to excel
+# In[] Export tables
 
 if not only_one_feature and export_table:
     os.makedirs(os.path.dirname(output_file_name), exist_ok=True)

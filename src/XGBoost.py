@@ -17,11 +17,19 @@ Script for computing machine learning model performance:
  - SHAP values of model trained by all languages
 """
 
-# In[] variables
+# In[] Set the script
+
+all_features = True  # False = use features in features_list
+only_one_scenario = False  # True = process just one scenario (otherwise loop)
+export_table = True  # export four tables in total
+
+scenario = 'IL'  # choose language in the case of only_one_scenario = True
+
+# In[] Variables
 
 features_list = ['TSK3-HRF', 'TSK3-NAQ', 'TSK3-QOQ', 'TSK3-relF0SD', 'TSK3-Jitter (PPQ)', 'TSK2-RFA1', 'TSK2-RFA2',
                  'TSK2-#loc_max', 'TSK2-relF2SD', 'TSK2-#lndmrk', 'TSK7-relSDSD', 'TSK7-COV', 'TSK7-RI', 'TSK2-relF0SD',
-                 'TSK2-SPIR']  # robust features according to statistical analysis
+                 'TSK2-SPIR']  # robust features according to stat. analysis (int the case of all_features = False)
 
 features_file_name = 'data/features_adjusted.csv'
 clinical_file_name = 'data/labels.csv'
@@ -35,13 +43,6 @@ scenario_list = ['CZ', 'US', 'IL', 'CO', 'IT', 'all']  # languages (all = all la
 metric_list = ['mcc', 'F1', 'AUC', 'acc', 'sen', 'spe']  # list of metrics in final table
 
 seed = 42  # for random search and cross-validation
-
-# In[] Set the script
-
-all_features = True  # False = use features in features_list
-only_one_scenario = False  # True = process just one scenario (otherwise loop)
-scenario = 'IL'  # choose language in the case of only_one_scenario = True
-export_table = True  # export four tables in total
 
 # In[] Load data
 
@@ -75,12 +76,23 @@ df_performance = pd.DataFrame(0.00, index=scenario_list, columns=metric_list)  #
 df_cross_language = pd.DataFrame(0.00, index=scenarios, columns=metric_list)  # create empty dataframe
 
 
-
-# In[] Replace HC for 0 and PD for 1
+# In[] Define the function to replace HC for 0 and PD for 1
 
 def replace_diagnosis_with_numbers(df):
     df_out = df.replace(['HC', 'PD'], [0, 1])
     return df_out
+
+
+# In[] Define the classification metrics
+
+def roc_auc(y_true, y_pred):
+    fpr, tpr, _ = roc_curve(y_true, y_pred, pos_label=1)
+    return auc(fpr, tpr)
+
+
+def specificity_score(y_true, y_pred):
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+    return tn / (tn + fp)
 
 
 # In[] Define the classifier settings
@@ -114,19 +126,6 @@ search_settings = {
     "n_iter": 500,
     "verbose": 10
 }
-
-
-# In[] Define the classification metrics
-
-def roc_auc(y_true, y_pred):
-    fpr, tpr, _ = roc_curve(y_true, y_pred, pos_label=1)
-    return auc(fpr, tpr)
-
-def specificity_score(y_true, y_pred):
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
-    return tn / (tn + fp)
-
-
 # In[] Loop through scenarios
 
 count_X = 0
@@ -144,7 +143,7 @@ for scenario in scenario_list:
 
         X = df_scenario.iloc[:, 0:-2].values
         y = df_scenario.iloc[:, -2].values
-        # Aux series for stratification according to language-diagnosis
+        # aux series for stratification according to language-diagnosis
         r = df_scenario.iloc[:, -1].values
     else:
         df_scenario = df_data.loc[df_clin['nationality'] == scenario]
@@ -152,19 +151,19 @@ for scenario in scenario_list:
 
         X = df_scenario.iloc[:, 0:-1].values
         y = df_scenario.iloc[:, -1].values
-        r = y  # Only basic stratification
+        r = y  # only basic stratification
 
     # In[] Search for the best hyper-parameters
 
     print('Hyper-parameters tuning - scenario:' + scenario)
 
-    # Create the classifier
+    # create the classifier
     model = xgb.XGBClassifier(**model_params)
 
     # 10-fold cross-validation
     kfolds = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
 
-    # Employ the hyper-parameter tuning
+    # employ the hyper-parameter tuning
     random_search = RandomizedSearchCV(
         model, cv=kfolds.split(X, r), random_state=seed, **search_settings)
 
@@ -177,14 +176,14 @@ for scenario in scenario_list:
 
     params = random_search.best_params_
 
-    # Get the classifier
+    # get the classifier
     model = xgb.XGBClassifier(**random_search.best_params_)
 
-    # Prepare the cross-validation scheme
+    # prepare the cross-validation scheme
     kfolds = RepeatedStratifiedKFold(
         n_splits=10, n_repeats=20, random_state=seed)
 
-    # Prepare the scoring
+    # prepare the scoring
     scoring = {
         "mcc": make_scorer(matthews_corrcoef, greater_is_better=True),
         'F1': make_scorer(f1_score, greater_is_better=True),
@@ -194,11 +193,11 @@ for scenario in scenario_list:
         "spe": make_scorer(specificity_score, greater_is_better=True)
     }
 
-    # Cross-validate the classifier
+    # cross-validate the classifier
     cv_results = cross_validate(
         model, X, y, scoring=scoring, cv=kfolds.split(X, r))
 
-    # Get the mean and std of the metrics
+    # get the mean and std of the metrics
     cls_report = {
         "mcc_avg": round(float(np.mean(cv_results["test_mcc"])), 4),
         "mcc_std": round(float(np.std(cv_results["test_mcc"])), 4),
@@ -212,7 +211,6 @@ for scenario in scenario_list:
         "sen_std": round(float(np.std(cv_results["test_sen"])), 4),
         "spe_avg": round(float(np.mean(cv_results["test_spe"])), 4),
         "spe_std": round(float(np.std(cv_results["test_spe"])), 4)
-
     }
 
     mcc = f"{cls_report['mcc_avg']:.2f} +- {cls_report['mcc_std']:.2f}"
@@ -233,12 +231,13 @@ for scenario in scenario_list:
     df_importances = df_importances.sort_values(
         by=['coefficient'], ascending=False, key=pd.Series.abs)
 
-    # Export table
+    # export table
 
     if export_table:
         df_importances.to_excel(writer_imp, sheet_name=scenario)
 
     # In[] Shap values
+
     if scenario == 'all':
         X = df_scenario.iloc[:, 0:-2]
         shap_values = shap.TreeExplainer(model).shap_values(X)
@@ -248,7 +247,9 @@ for scenario in scenario_list:
 
         fig.savefig(output_filename_shap)
         plt.close()
-    # In[] store feature importances for calculation of global feature importances
+
+    # In[] Store feature importances for calculation of global feature importances
+
     elif not only_one_scenario:
         imp_array = np.append(imp_array, model.feature_importances_.reshape(-1, 1), axis=1)
 
@@ -275,7 +276,7 @@ for scenario in scenario_list:
 
                 df_cross_language.loc[scenario_test, :] = [mcc, F1, AUC, acc, sen, spe]
 
-            # Export table
+            # export table
 
             if export_table:
                 df_cross_language.to_excel(writer_cross, sheet_name='Train-' + scenario)
@@ -292,12 +293,13 @@ if not only_one_scenario:
     if export_table:
         df_imp_glob.to_excel(writer_imp, sheet_name='global')
 
-# In[] export tables
+# In[] Export tables
 
 if export_table:
     df_performance.to_excel(writer_per, sheet_name='performance')
 
-# In[] save and close excel files
+# In[] Save and close excel files
+
 if export_table:
     writer_imp.save()
     writer_per.save()
