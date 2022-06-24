@@ -80,7 +80,7 @@ Clinical data starting with the row "duration_of_PD" can be changed or extended.
 
 | column name     | dtype        | description
 | -------------   | ----------   | -----------
-| ID              | str or int   | Unique identifier of each recording
+| ID              | str or int   | Unique identifier of each subject
 | feature_1_name  | numeric      | Feature values computed from raw audio
 | ...             | numeric      | ...
 | feature_N_name  | numeric      | Use as many features as you need
