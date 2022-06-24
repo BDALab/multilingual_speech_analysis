@@ -59,11 +59,11 @@ Create two csv files, `data/labels.csv` and `data/features.csv` delimited with `
 Each of the files must contain one subject per row. The first column
 in each file must be a unique subject ID. Both files must be sorted the same way.
 
-Structure of `data/labels.csv`:
+- Structure of `data/labels.csv`:
 
 | column name     | dtype        | description
 | -------------   | ----------   | -----------
-| ID              | str or int   | Unique identifier of each recording
+| ID              | str or int   | Unique identifier of each subject
 | nationality     | str          | Used for stratification
 | diagnosis       | 'HC' or 'PD' | Used for stratification and as a target of classification
 | sex             | 'M' or 'F'   | Used for data adjustment
@@ -74,9 +74,9 @@ Structure of `data/labels.csv`:
 | UPDRSIII-speech | numeric      | Same as previous but only for speech
 | H&Y             | numeric      | Hoehn & Yahr rating scale
 
-- Clinical data starting with the row "duration_of_PD" can be changed or extended.
+Clinical data starting with the row "duration_of_PD" can be changed or extended.
 
-Structure of `data/features.csv`:
+- Structure of `data/features.csv`:
 
 | column name     | dtype        | description
 | -------------   | ----------   | -----------
