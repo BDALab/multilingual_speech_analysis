@@ -56,8 +56,8 @@ list of those that need to be installed: `shap`, `numpy`, `scipy`, `pandas`,
 ### Prepare the data
 
 Create two csv files, `data/labels.csv` and `data/features.csv` delimited with `;`.
-Each of the files must contain one recording per row. The first column
-in each file must be a unique recording ID. Both files must be sorted the same way.
+Each of the files must contain one subject per row. The first column
+in each file must be a unique subject ID. Both files must be sorted the same way.
 
 Structure of `data/labels.csv`:
 
@@ -72,7 +72,9 @@ Structure of `data/labels.csv`:
 | LED             | numeric      | Daily dose of medication (L-dopa)
 | UPDRSIII        | numeric      | Unified Parkinson Disease Rating Scale (part 3)
 | UPDRSIII-speech | numeric      | Same as previous but only for speech
-| H&Y             | numeric      | Hoehn & Yahr scale
+| H&Y             | numeric      | Hoehn & Yahr rating scale
+
+- Clinical data starting with the row "duration_of_PD" can be changed or extended.
 
 Structure of `data/features.csv`:
 
@@ -85,16 +87,16 @@ Structure of `data/features.csv`:
 
 ### Repeat the experiments
 
-1. run `src/adjust_features.py` to get `data/features_adjusted.csv`
-2. run `src/plot_age.py` to get `results/age.pdf`
-3. run `src/correlations.py` to obtain `results/spearman.csv`
-3. configure and run `src/correlations.py` to obtain `results/pearson.csv`
-4. run `src/get_statistics.py` to obtain `results/stats_results.csv`
-5. run `src/XGBoost.py` to obtain feature importances and classification results
-6. run `src/XGBoost_leave-one-language-out.py` to obtain `results/leave-one-language-out.csv`
-
+1. run `src/data_info.py` to get `results/violin_graph.pdf`, `results/demograf.xlsx` and `results/demograf.xlsx`
+2. run `src/adjust_features.py` to obtain `data/features_adjusted.csv`
+3. run `src/get_statistics.py` to get `results/stats_results.xlsx`
+4. run `src/correlations.py` to get `results/spearman.xlsx`
+5. run `src/XGBoost.py` to get `results/feature_importances.xlsx`, `results/model_performance.xlsx`,
+ `results/cross_language.xlsx` and `results/SHAP_all.pdf`
+6. run `src/XGBoost_leave-one-language-out.py` to get `results/leave_one_language_out.xlsx`
 
 ## License
+
 This project is licensed under the terms of the MIT license.
 
 ## Acknowledgement
