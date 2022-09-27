@@ -3,13 +3,13 @@
 In this project, we analyze robustness of various acoustic features to changes in language.
 We extracted the features from speech recordings of people with Parkinson's disease and healthy controls.
 The original recordings come from five data sets, each recorded in a different language.
+Statistical tests and descriptive statistics are used to analyze language robustness.
 The downstream task is a binary classification of the recordings (healthy or parkinson's) based on the features.
 We used XGBoost classifier to solve the task and extract the feature importances.
 Moreover, we analyze the feature importance using SHAP values.
 
 ## Research article
 
-The findings of this study are published in [update this ArXiv link](https://arxiv.org).
 In case you build upon this work, please, cite our work.
 
 ```bibtex
@@ -29,10 +29,8 @@ In case you build upon this work, please, cite our work.
 ## Reproducibility
 
 Due to the licensing of the used data sets, we are not allowed to publish the
-recordings, the features, nor the labels. However, we provide all the source
-code (in folder `src`), so you can run the same experiments on your own data.
-Additionally, in the article, we list the software packages used to compute
-the features from the raw audio recordings.  
+recordings, the features, nor the labels. However, we provide the source
+code (in folder `src`), so you can run the same experiments on your own data. 
 
 ### Install the dependencies
 
@@ -101,4 +99,6 @@ This project is licensed under the terms of the MIT license.
 
 ## Acknowledgement
 
-This work was supported by ...
+This work was supported by the Czech Ministry of Health under grant no. NU20-04-00294,
+by EU -- Next Generation EU (project no. LX22NPO5107 (MEYS)), and by the European Union's Horizon 2020
+research and innovation program under the Marie Skłodowska-Curie grant agreement no. 734718 (CoBeN).
