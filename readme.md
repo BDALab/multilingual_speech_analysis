@@ -12,10 +12,9 @@ Moreover, we analyze the feature importance using SHAP values.
 
 In case you build upon this work, please, cite our work.
 
-```
 Biomedical Signal Processing and Control: [doi.org/10.1016/j.bspc.2023.105667](https://doi.org/10.1016/j.bspc.2023.105667)
+
 MedRxiv: [doi.org/10.1101/2022.10.24.22281459](https:/doi.org/10.1101/2022.10.24.22281459)
-```
 
 ## Reproducibility
 
