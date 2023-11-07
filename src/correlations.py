@@ -1,12 +1,12 @@
 import os
 import numpy as np
 import pandas as pd
-from scipy.stats import spearmanr
-from scipy.stats import pearsonr
+
+import pingouin as pg
 from statsmodels.stats.multitest import fdrcorrection
 
 """
-Script for computing the Pearson and Spearman correlation of features and
+Script for computing the partial Pearson and Spearman correlation of features and
 clinical scores.
 """
 
@@ -19,13 +19,13 @@ correlation = 'spearman'  # or 'pearson'
 
 features_file_name = 'data/features_adjusted.csv'
 clinical_file_name = 'data/labels.csv'
-output_filename = f'results/{correlation}.xlsx'
+output_filename = f'results/partial_{correlation}.xlsx'
 
 scenarios = ['duration_of_PD', 'LED', 'UPDRSIII', 'UPDRSIII-speech', 'H&Y']
 scores = ['coeff', 'p-value', 'FDR_correction']
 
 # In[] Load data
-df_feat = pd.read_csv(features_file_name, sep=';', index_col=0)
+df_feat = pd.read_excel(features_file_name, index_col=0)
 
 # get feature names
 features = df_feat.columns
@@ -40,30 +40,20 @@ for scenario in scenarios:
 
     # In[] load data
 
-    df_clin = pd.read_csv(
-        clinical_file_name, sep=';', index_col=0, usecols=['ID', scenario])
+    df_clin = pd.read_excel(clinical_file_name, index_col=0, usecols=['ID', scenario, 'nationality'])
     df_data = df_feat.copy().join(df_clin)
 
     # In[] Calculate correlation of each feature with scenario
 
     for feature_name in features:
-        # select vectors of features and clinical data
-        feat_vector = df_data.loc[:, feature_name].values
-        clin_vector = df_data.loc[:, scenario].values
 
-        # remove rows where the feature is NaN
-        nan_mask_feat = np.isnan(feat_vector)
-        feat_vector = feat_vector[~nan_mask_feat]
-        clin_vector = clin_vector[~nan_mask_feat]
+        df_data['nationality_factorized'] = pd.factorize(df_data['nationality'])[0]
+        partial_corr = pg.partial_corr(data=df_data, x=feature_name, y=scenario,
+                                                  covar='nationality_factorized', method=correlation)
 
-        # remove rows where the scenario is NaN
-        nan_mask_clin = np.isnan(clin_vector)
-        feat_vector = feat_vector[~nan_mask_clin]
-        clin_vector = clin_vector[~nan_mask_clin]
+        pval = partial_corr['p-val'].iloc[0]
+        coef = partial_corr['r'].iloc[0]
 
-        # compute correlation coefficient, p-value and fdr correction
-        func = spearmanr if correlation == 'spearman' else pearsonr
-        coef, pval = func(feat_vector.flatten(), clin_vector.flatten())
         df.loc[feature_name, scenario] = [coef, pval, np.nan]  # round(x, 3)
 
     # Compute false discovery rate
